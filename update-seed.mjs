@@ -1,12 +1,12 @@
-// Refreshes the embedded SEED snapshot in index.html from the live ESPN feed.
+// Refreshes the embedded SEED snapshot in app.js from the live ESPN feed.
 // Updates states/scores in place and fills knockout placeholders with real teams,
-// preserving seed ids and "Winner NN" feeder references the bracket depends on.
+// preserving seed ids the bracket structure depends on.
 // Usage: node update-seed.mjs
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'index.html');
+const FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'app.js');
 let html = fs.readFileSync(FILE, 'utf8');
 
 const seedMatch = html.match(/const SEED=(\[.*?\]);/s);
