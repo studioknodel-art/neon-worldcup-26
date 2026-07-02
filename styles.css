@@ -315,3 +315,19 @@
 .sst{font-family:'JetBrains Mono';font-weight:700;font-size:19px;color:#fff;text-shadow:0 0 8px rgba(0,232,255,.45);text-align:right}
 .sst small{display:block;font-size:9px;color:var(--mut);font-weight:500;letter-spacing:.1em;text-transform:uppercase;text-shadow:none}
 @media(max-width:560px){.strow{grid-template-columns:24px 1fr 56px}.sme{display:none}}
+/* stadium mode — bigger glanceable text */
+.refresh.on{border-color:rgba(255,194,77,.6);color:var(--amber);box-shadow:0 0 14px -6px rgba(255,194,77,.6)}
+body.stadium .tmatch{font-size:19px}
+body.stadium .tscore-drop{font-size:18px}
+body.stadium .tgame .sc,body.stadium .tscore-drop .sc{font-size:23px}
+body.stadium .ttime{font-size:15px}
+body.stadium .ttime .livep{font-size:16px}
+body.stadium .fstrip{font-size:16px}
+body.stadium .strow .sst{font-size:24px}
+body.stadium .strow .snm{font-size:16px}
+/* share + toast */
+.bdact{margin-top:12px}
+.shbtn,.fcal{cursor:pointer;font-family:'Sora',sans-serif;font-size:12px;font-weight:600;padding:7px 13px;border-radius:9px;border:1px solid rgba(0,232,255,.4);background:transparent;color:var(--cyan);transition:background .2s}
+.shbtn:hover,.fcal:hover{background:rgba(0,232,255,.1)}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(10px);background:rgba(7,10,18,.96);border:1px solid var(--cyan);color:var(--ink);padding:10px 16px;border-radius:10px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;box-shadow:0 0 20px -6px rgba(0,232,255,.6)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}

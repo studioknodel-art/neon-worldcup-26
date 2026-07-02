@@ -460,6 +460,7 @@ function renderBracketDetail(){
   const head=(live||post)?(m.a.name+' '+(m.sa==null?0:m.sa)+'–'+(m.sb==null?0:m.sb)+' '+m.b.name):(m.a.name+' vs '+m.b.name);
   let html='<h4>'+head+'</h4><div class="meta"><span>'+label+'</span><span>'+fmtDay(m.date)+' · '+fmtTime(m.date)+' CDT</span><span>'+(m.venueCity||'TBD')+(m.dallas?' · Dallas':'')+'</span><span>'+(m.ch||'TBD')+'</span>'+(live?'<span style="color:var(--live)">● LIVE'+(m.clock?' '+m.clock:'')+'</span>':'')+'</div>';
   if(oc) html+='<div class="adv">→ '+oc.winner.name+' advance'+(oc.pens?' (on penalties)':'')+'</div>';
+  html+='<div class="bdact"><button type="button" class="shbtn" onclick="shareMatch(\''+m.id+'\')">↗ Share</button></div>';
   box.innerHTML=html;
 }
 
@@ -532,6 +533,7 @@ function renderFollow(){
     html+='<span class="fmut">No upcoming matches scheduled</span>';
   }
   html+='<button type="button" onclick="followShowPath()">Bracket path →</button>';
+  html+='<button type="button" class="fcal" onclick="icsForFollow()">📅 Calendar</button>';
   strip.hidden=false; strip.innerHTML=html;
 }
 function followShowPath(){
@@ -543,6 +545,55 @@ function followShowPath(){
   document.querySelector('#r32switch button[data-mode="bracket"]').click();
   const el=document.getElementById('bktInner');
   if(el)setTimeout(function(){el.scrollIntoView({behavior:'smooth',block:'center'});},60);
+}
+
+/* ---------- share + calendar ---------- */
+function flashToast(msg){
+  let t=document.getElementById('toast');
+  if(!t){t=document.createElement('div');t.id='toast';t.className='toast';t.setAttribute('role','status');document.body.appendChild(t);}
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(flashToast._t);flashToast._t=setTimeout(function(){t.classList.remove('show');},1800);
+}
+function matchSummary(m){
+  const oc=r32Outcome(m), live=m.state==='in', post=m.state==='post';
+  if(post||live){
+    let s=m.a.name+' '+(m.sa==null?0:m.sa)+'–'+(m.sb==null?0:m.sb)+' '+m.b.name;
+    if(oc)s+=' — '+oc.winner.name+' advance'+(oc.pens?' (pens)':'');
+    else if(live)s+=' (LIVE'+(m.clock?' '+m.clock:'')+')';
+    return s;
+  }
+  return m.a.name+' vs '+m.b.name+' — '+fmtDay(m.date)+' '+fmtTime(m.date)+' CDT';
+}
+async function shareMatch(id){
+  const m=MATCHES.find(x=>x.id===id); if(!m)return;
+  const text='⚽ '+matchSummary(m)+'\nWorld Cup 2026 · '+location.href;
+  try{ if(navigator.share){ await navigator.share({text:text}); return; } }
+  catch(e){ if(e&&e.name==='AbortError')return; }
+  try{ await navigator.clipboard.writeText(text); flashToast('Copied — paste it to a friend'); }
+  catch(e){ flashToast('Copy not supported here'); }
+}
+function icsForFollow(){
+  if(!FOLLOW)return;
+  const mine=MATCHES.filter(isFav).sort((a,b)=>a.date-b.date);
+  if(!mine.length){flashToast('No matches to add');return;}
+  const dt=d=>new Date(d).toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'');
+  const esc=s=>String(s).replace(/([,;\\])/g,'\\$1').replace(/\n/g,'\\n');
+  let out=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//WC2026 Tracker//EN','CALSCALE:GREGORIAN'];
+  mine.forEach(function(m){
+    const end=new Date(m.date.getTime()+2*3600000);
+    out.push('BEGIN:VEVENT','UID:'+m.id+'@wc2026-neon','DTSTAMP:'+dt(Date.now()),
+      'DTSTART:'+dt(m.date),'DTEND:'+dt(end),
+      'SUMMARY:'+esc('⚽ '+m.a.name+' vs '+m.b.name+(m.grp?' (Group '+m.grp+')':(STAGEL[m.stage]?' ('+STAGEL[m.stage]+')':''))),
+      'LOCATION:'+esc((m.venueCity||'TBD')+(m.ch?' · '+m.ch:'')),
+      'DESCRIPTION:'+esc('World Cup 2026 · Dallas Central Time'),
+      'END:VEVENT');
+  });
+  out.push('END:VCALENDAR');
+  const blob=new Blob([out.join('\r\n')],{type:'text/calendar'});
+  const url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url;a.download='wc2026-'+FOLLOW+'.ics';document.body.appendChild(a);a.click();a.remove();
+  setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  flashToast('Calendar file downloaded');
 }
 
 /* ---------- golden boot / stats ---------- */
@@ -711,6 +762,13 @@ setInterval(function(){  // keep countdowns fresh without re-rendering (preserve
   if(FOLLOW)renderFollow();
   document.querySelectorAll('.kcd').forEach(function(el){el.textContent=kickoffText(+el.dataset.ko);});
 },30000);
+(function(){  // stadium mode: bigger glanceable text, persisted
+  var b=document.getElementById('stadiumBtn'); if(!b)return;
+  function apply(on){document.body.classList.toggle('stadium',on);b.classList.toggle('on',on);b.setAttribute('aria-pressed',on?'true':'false');}
+  var on=false; try{on=localStorage.getItem('wc2026_stadium')==='1';}catch(e){}
+  apply(on);
+  b.addEventListener('click',function(){on=!on;try{localStorage.setItem('wc2026_stadium',on?'1':'0');}catch(e){}apply(on);});
+})();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)load(false);});
 
 MATCHES=seedToMatches();renderToday();renderGroups();renderSchedule();renderR32();renderFollow();updateStatus(true);

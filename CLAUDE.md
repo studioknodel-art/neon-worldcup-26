@@ -42,13 +42,19 @@ netlify deploy --prod --dir . --site f191c838-3bcf-4803-ba27-c4f0f6a2f88c
 ```
 Netlify CLI lives in `~/.npm-global/bin` (add to PATH). For visual verification, serve this folder (`python3 -m http.server`) and check: console clean, follow flow, bracket connectors, mobile width (`max-width:560px` breakpoints).
 
-## Backlog (agreed with owner, rough priority)
+## Backlog — all shipped ✓
 
-1. Match countdowns on today's cards ("Kicks off in 2h 14m")
-2. Group permutation hints are moot now (knockouts underway) — instead: "what a win means" line for followed team (projected next opponent)
-3. Golden Boot / stats tab (ESPN feed family)
-4. Share cards (copy result summary)
-5. "Stadium mode" (bigger glanceable fonts)
-6. Calendar .ics export per team
-7. Compliance pass: "unofficial fan site" disclaimer wording, ESPN ToS review
-8. Error beacon/analytics so feed breakage is visible
+1. ✓ Match countdowns on today's cards (`kickoffText`, `.kcd`, 30s ticker)
+2. ✓ "What a win means" line for followed team (`projectOpponent` walks BRACKET tree)
+3. ✓ Golden Boot / stats tab (`loadStats`, ESPN core-API leaders, lazy + 15min cache)
+4. ✓ Share cards (`shareMatch`/`matchSummary` — navigator.share or clipboard; button in bracket detail)
+5. ✓ Stadium mode (`body.stadium`, `#stadiumBtn`, localStorage `wc2026_stadium`)
+6. ✓ Calendar .ics export per followed team (`icsForFollow`, button in follow strip)
+7. ✓ Compliance: unaffiliated disclaimer in footer
+8. Skipped by owner — a real beacon means sending user data off-device; not wired. If revisited, use `navigator.sendBeacon` to an owner-controlled endpoint, opt-in, and get explicit sign-off first (outward-facing).
+
+## Possible future ideas (not committed)
+
+- Second data source / feed-failover for resilience (ESPN endpoint is unofficial, single point of failure)
+- Knockout permutation/scenario view once later rounds populate
+- Shareable image cards (canvas render) beyond the current text summary
