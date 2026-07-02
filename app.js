@@ -545,6 +545,62 @@ function followShowPath(){
   if(el)setTimeout(function(){el.scrollIntoView({behavior:'smooth',block:'center'});},60);
 }
 
+/* ---------- golden boot / stats ---------- */
+const STATS_API="https://sports.core.api.espn.com/v2/sports/soccer/leagues/fifa.world/seasons/2026/types/1/leaders?limit=40";
+const STATS_CACHE="wc2026_stats_cache_v1", STATS_TTL=15*60*1000;
+let statsLoading=false;
+async function jfetch(u){const r=await fetch(u);if(!r.ok)throw new Error("HTTP "+r.status);return r.json();}
+async function loadStats(){
+  const host=document.getElementById('statsList'); if(!host)return;
+  let cached=null;
+  try{cached=JSON.parse(localStorage.getItem(STATS_CACHE)||'null');}catch(e){}
+  if(cached&&cached.rows)renderStats(cached.rows,cached.ts);
+  if(statsLoading||(cached&&Date.now()-cached.ts<STATS_TTL))return;
+  statsLoading=true;
+  try{
+    const j=await jfetch(STATS_API);
+    const cats={};(j.categories||[]).forEach(c=>cats[c.name]=c);
+    const goals=((cats.goalsLeaders||cats.goals||{}).leaders||[]).slice(0,10).map(l=>({l,cat:'g'}));
+    const assists=((cats.assistsLeaders||cats.assists||{}).leaders||[]).slice(0,5).map(l=>({l,cat:'a'}));
+    const wanted=goals.concat(assists);
+    const refs={};
+    wanted.forEach(w=>{if(w.l.athlete)refs[w.l.athlete.$ref]=null;if(w.l.team)refs[w.l.team.$ref]=null;});
+    const keys=Object.keys(refs);
+    const vals=await Promise.all(keys.map(u=>jfetch(u).catch(()=>null)));
+    keys.forEach((k,i)=>{refs[k]=vals[i];});
+    const toRow=w=>{
+      const a=w.l.athlete?refs[w.l.athlete.$ref]:null, t=w.l.team?refs[w.l.team.$ref]:null;
+      const sv=w.l.shortDisplayValue||'';                   // e.g. "M: 4, G: 6: A: 2"
+      const num=lbl=>{const mm=sv.match(new RegExp(lbl+':\\s*(\\d+)'));return mm?+mm[1]:null;};
+      return {name:a?(a.displayName||a.shortName||'—'):'—',team:t?t.displayName:'',abbr:t?(t.abbreviation||''):'',
+              v:w.l.value,m:num('M'),ast:num('A')};
+    };
+    const rows={goals:goals.map(toRow),assists:assists.map(toRow)};
+    try{localStorage.setItem(STATS_CACHE,JSON.stringify({ts:Date.now(),rows}));}catch(e){}
+    renderStats(rows,Date.now());
+  }catch(err){
+    if(!cached)host.innerHTML='<div class="none">Couldn’t load stats — needs a network connection. Reopen this tab to retry.</div>';
+  }finally{statsLoading=false;}
+}
+function renderStats(rows,ts){
+  const host=document.getElementById('statsList'); if(!host)return;
+  const tbl=(title,list,lbl,extra)=>{
+    if(!list||!list.length)return '';
+    return '<div class="sectitle" style="margin-top:26px">'+title+'<span class="bar"></span></div>'
+      +'<div class="stt">'+list.map((r,i)=>{
+        const f=flag(r.abbr,r.team);
+        const meta=(r.m!=null?r.m+' played':'')+(extra&&r.ast?' · '+r.ast+' assists':'');
+        return '<div class="strow"><span class="srk">'+(i+1)+'</span>'
+          +'<span class="snm">'+(f?'<span class="flag">'+f+'</span>':'')+r.name+'<small>'+r.team+'</small></span>'
+          +'<span class="sme">'+meta+'</span>'
+          +'<span class="sst">'+r.v+'<small>'+lbl+'</small></span></div>';
+      }).join('')+'</div>';
+  };
+  host.innerHTML=tbl('Golden Boot · Top Scorers',rows.goals,'goals',true)
+    +tbl('Top Assists',rows.assists,'assists',false)
+    +'<div class="secnote" style="margin-top:14px">Updated '+new Date(ts).toLocaleTimeString('en-US',{timeZone:TZ,hour:'numeric',minute:'2-digit'})+' · ESPN data · refreshes when you reopen this tab</div>';
+}
+
 /* ---------- status / live indicator ---------- */
 function updateStatus(fromCache){
   const live=MATCHES.filter(m=>m.state==="in");
@@ -621,13 +677,14 @@ document.getElementById('refreshBtn').addEventListener('click',()=>load(true));
 })();
 (function(){
   var nav=document.getElementById('tabnav');
-  var views={main:document.getElementById('view-main'),r32:document.getElementById('view-r32')};
+  var views={main:document.getElementById('view-main'),r32:document.getElementById('view-r32'),stats:document.getElementById('view-stats')};
   nav.querySelectorAll('button').forEach(function(btn){
     btn.addEventListener('click',function(){
       var v=btn.dataset.view;
       nav.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===btn);x.setAttribute('aria-selected',x===btn?'true':'false');});
       Object.keys(views).forEach(function(k){if(views[k])views[k].hidden=(k!==v);});
       if(v==='r32'){renderR32();requestAnimationFrame(drawBracketConnectors);}
+      if(v==='stats')loadStats();
       window.scrollTo({top:0,behavior:'smooth'});
     });
   });

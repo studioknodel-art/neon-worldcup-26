@@ -44,6 +44,7 @@
 <nav class="tabnav" id="tabnav" role="tablist" aria-label="Site sections">
   <button class="on" data-view="main" role="tab" aria-selected="true">Tournament</button>
   <button data-view="r32" role="tab" aria-selected="false">Round of 32<span class="cnt" id="r32tabcnt"></span></button>
+  <button data-view="stats" role="tab" aria-selected="false">Golden Boot</button>
 </nav>
 
 <div class="followbar">
@@ -98,6 +99,12 @@
     <div class="bkt-wrap"><div class="bkt-inner" id="bktInner"><svg class="bkt-svg" id="bktSvg"></svg></div></div>
     <div class="bthird" id="bthird"></div>
   </div>
+</div>
+
+<div id="view-stats" class="view" hidden>
+  <div class="sectitle" style="margin-top:4px">Tournament Stats<span class="bar"></span><span class="sectip">Golden Boot race</span></div>
+  <div class="secnote">Top scorers and assist leaders across the tournament · stats refresh when you open this tab</div>
+  <div id="statsList"><div class="none">Loading stats…</div></div>
 </div>
 
 <footer id="foot">
