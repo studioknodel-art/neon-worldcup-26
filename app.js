@@ -282,7 +282,9 @@ function renderToday(){
     const scoreReveal=hasScore
       ?'<div class="tscore-drop">'+tn(m.a,post&&m.sa>m.sb)+' <span class="sc">'+(m.sa==null?0:m.sa)+'–'+(m.sb==null?0:m.sb)+'</span> '+tn(m.b,post&&m.sb>m.sa)+(post?' <span class="sclabel">Final</span>':live?' <span class="sclabel">Live</span>':'')+'</div>'
       :'';
-    const hint=hasScore?'<span class="score-hint">▾ tap to reveal score</span>':'';
+    const hint=hasScore
+      ?'<span class="score-hint">▾ tap to reveal score</span>'
+      :'<span class="score-hint kcd" data-ko="'+m.date.getTime()+'">'+kickoffText(m.date.getTime())+'</span>';
     const clickAttr=hasScore?' role="button" tabindex="0" aria-expanded="false"'
       +' onclick="this.classList.toggle(\'open\');this.setAttribute(\'aria-expanded\',this.classList.contains(\'open\'))"'
       +' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}"':'';
@@ -470,6 +472,10 @@ function fmtCountdown(ms){
   const mins=Math.floor(ms/60000),d=Math.floor(mins/1440),h=Math.floor(mins%1440/60),mm=mins%60;
   if(d)return d+'d '+h+'h'; if(h)return h+'h '+mm+'m'; return mm+'m';
 }
+function kickoffText(ts){
+  const ms=ts-Date.now();
+  return ms<=0?'⏱ kicking off…':'⏱ kicks off in '+fmtCountdown(ms);
+}
 function renderFollow(){
   const sel=document.getElementById('followSel'), strip=document.getElementById('fstrip');
   if(!sel||!strip)return;
@@ -622,7 +628,10 @@ document.getElementById('followSel').addEventListener('change',function(e){
   try{localStorage.setItem(FOLLOW_KEY,FOLLOW);}catch(err){}
   renderToday();renderSchedule();renderR32();renderFollow();
 });
-setInterval(function(){if(FOLLOW)renderFollow();},30000);  // keep the countdown fresh
+setInterval(function(){  // keep countdowns fresh without re-rendering (preserves open cards)
+  if(FOLLOW)renderFollow();
+  document.querySelectorAll('.kcd').forEach(function(el){el.textContent=kickoffText(+el.dataset.ko);});
+},30000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)load(false);});
 
 MATCHES=seedToMatches();renderToday();renderGroups();renderSchedule();renderR32();renderFollow();updateStatus(true);

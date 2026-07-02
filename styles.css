@@ -300,3 +300,4 @@
 .bnode.fav{border-color:rgba(255,194,77,.6)}
 @media(max-width:560px){.fstrip button{margin-left:0;flex-basis:100%}}
 .fstrip[hidden]{display:none}
+.kcd{color:var(--amber)}
