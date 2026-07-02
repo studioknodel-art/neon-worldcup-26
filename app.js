@@ -250,7 +250,7 @@ function renderSchedule(){
     }
     const live=m.state==="in";
     const chCls=(m.ch==="FOX"||m.ch==="FS1")?m.ch:"TV";
-    const r=document.createElement('div');r.className="row"+(m.dallas?" dl":"")+(live?" lv":"");
+    const r=document.createElement('div');r.className="row"+(m.dallas?" dl":"")+(live?" lv":"")+(isFav(m)?" fav":"");
     const timecell=live
       ? `<span class="livep blink">● LIVE</span><span class="clk">${m.clock||m.detail||''}</span>`
       : (m.state==="post"?`${fmtTime(m.date)}<small>FT</small>`:`${fmtTime(m.date)}<small>CDT</small>`);
@@ -286,7 +286,7 @@ function renderToday(){
     const clickAttr=hasScore?' role="button" tabindex="0" aria-expanded="false"'
       +' onclick="this.classList.toggle(\'open\');this.setAttribute(\'aria-expanded\',this.classList.contains(\'open\'))"'
       +' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}"':'';
-    return '<div class="tgame'+(m.dallas?' dl':'')+(live?' lv':'')+(hasScore?' has-score':'')+'"'+clickAttr+'>'
+    return '<div class="tgame'+(m.dallas?' dl':'')+(live?' lv':'')+(isFav(m)?' fav':'')+(hasScore?' has-score':'')+'"'+clickAttr+'>'
       +'<div class="ttime">'+when+'</div>'
       +'<div class="tmatch">'+tn(m.a,false)+' <span class="vs">vs</span> '+tn(m.b,false)+hint+'</div>'
       +'<div class="ch '+chCls+'">'+(m.ch||'TBD')+'</div>'
@@ -339,7 +339,7 @@ function renderR32(){
     if(oc) foot='<div class="r32adv">→ '+oc.winner.name+' advance to Round of 16'+(oc.pens?'<span class="pens">(on penalties)</span>':'')+'</div>';
     else if(isLive) foot='<div class="r32tag">In progress'+(m.clock?(' · '+m.clock):'')+'</div>';
     else foot='<div class="r32tag">Winner advances to Round of 16</div>';
-    html+='<div class="r32card'+(m.dallas?' dl':'')+(isLive?' lv':'')+(post?' done':'')+'">'
+    html+='<div class="r32card'+(m.dallas?' dl':'')+(isLive?' lv':'')+(post?' done':'')+(isFav(m)?' fav':'')+'">'
       +'<div class="r32when">'+when+'</div>'
       +'<div class="r32teams">'+teams+'</div>'
       +'<div class="r32meta"><b>'+(m.venueCity||'TBD')+'</b><span class="ch '+chCls+'">'+(m.ch||'TBD')+'</span></div>'
@@ -374,7 +374,7 @@ function bMakeNode(m,ci,pi){
   const showScore=live||post||m.sa!=null;
   const aWon=!!(oc&&oc.winner===m.a), bWon=!!(oc&&oc.winner===m.b);
   const el=document.createElement('div');
-  el.className='bnode'+(m.dallas?' dl':'')+(live?' live':'')+(post?' done':'');
+  el.className='bnode'+(m.dallas?' dl':'')+(live?' live':'')+(post?' done':'')+(isFav(m)?' fav':'');
   el.dataset.id=m.id; el.dataset.col=ci; el.dataset.pos=pi;
   el.innerHTML=bRow(m.a,m.sa,aWon,post&&!aWon,showScore)+bRow(m.b,m.sb,bWon,post&&!bWon,showScore);
   el.setAttribute('role','button');el.tabIndex=0;
@@ -461,6 +461,62 @@ function renderBracketDetail(){
   box.innerHTML=html;
 }
 
+/* ---------- follow your team ---------- */
+const FOLLOW_KEY='wc2026_follow_team';
+let FOLLOW=''; try{FOLLOW=localStorage.getItem(FOLLOW_KEY)||'';}catch(e){}
+function isFav(m){return !!FOLLOW&&(m.a.abbr===FOLLOW||m.b.abbr===FOLLOW);}
+function fmtCountdown(ms){
+  if(ms<=0)return 'now';
+  const mins=Math.floor(ms/60000),d=Math.floor(mins/1440),h=Math.floor(mins%1440/60),mm=mins%60;
+  if(d)return d+'d '+h+'h'; if(h)return h+'h '+mm+'m'; return mm+'m';
+}
+function renderFollow(){
+  const sel=document.getElementById('followSel'), strip=document.getElementById('fstrip');
+  if(!sel||!strip)return;
+  const seen={},teams=[];
+  MATCHES.forEach(m=>[m.a,m.b].forEach(t=>{if(t.abbr&&!seen[t.abbr]){seen[t.abbr]=1;teams.push(t);}}));
+  teams.sort((x,y)=>x.name.localeCompare(y.name));
+  if(document.activeElement!==sel){  // don't rebuild while the user has the picker open
+    sel.innerHTML='<option value="">Follow a team…</option>'
+      +teams.map(t=>'<option value="'+t.abbr+'"'+(t.abbr===FOLLOW?' selected':'')+'>'+t.name+'</option>').join('');
+  }
+  if(!FOLLOW){strip.hidden=true;return;}
+  const tm=teams.find(t=>t.abbr===FOLLOW);
+  const mine=MATCHES.filter(isFav).sort((a,b)=>a.date-b.date);
+  const live=mine.find(m=>m.state==='in');
+  const next=mine.find(m=>m.state==='pre');
+  const played=mine.filter(m=>m.state==='post');
+  const last=played[played.length-1];
+  const f=tm?flag(tm.abbr,tm.name):'';
+  let html='<span>'+(f?'<span class="flag">'+f+'</span>':'')+'<b>'+(tm?tm.name:FOLLOW)+'</b></span>';
+  if(live){
+    const opp=live.a.abbr===FOLLOW?live.b:live.a;
+    html+='<span class="flv">● LIVE '+(live.sa==null?0:live.sa)+'–'+(live.sb==null?0:live.sb)+' vs '+opp.name+(live.clock?' · '+live.clock:'')+'</span>';
+  }else if(next){
+    const opp=next.a.abbr===FOLLOW?next.b:next.a;
+    html+='<span>Next: vs '+opp.name+' · '+fmtDay(next.date)+' '+fmtTime(next.date)+' CDT · '+(next.ch||'TBD')+'</span>'
+      +'<span class="cd">in '+fmtCountdown(next.date-new Date())+'</span>';
+  }else if(last&&last.stage!=='group'){
+    const oc=r32Outcome(last);
+    if(oc&&oc.winner.abbr===FOLLOW) html+='<span class="fadv">Through to the next round — opponent TBD</span>';
+    else html+='<span class="fmut">Eliminated · '+(last.sa+'–'+last.sb)+(oc?' vs '+oc.winner.name:'')+(oc&&oc.pens?' (pens)':'')+'</span>';
+  }else{
+    html+='<span class="fmut">No upcoming matches scheduled</span>';
+  }
+  html+='<button type="button" onclick="followShowPath()">Bracket path →</button>';
+  strip.hidden=false; strip.innerHTML=html;
+}
+function followShowPath(){
+  if(!FOLLOW)return;
+  const ko=MATCHES.filter(m=>isFav(m)&&m.stage!=='group').sort((a,b)=>a.date-b.date);
+  const target=ko.find(m=>m.state==='in')||ko.find(m=>m.state==='pre')||ko[ko.length-1];
+  if(target)bktSel=target.id;
+  document.querySelector('#tabnav button[data-view="r32"]').click();
+  document.querySelector('#r32switch button[data-mode="bracket"]').click();
+  const el=document.getElementById('bktInner');
+  if(el)setTimeout(function(){el.scrollIntoView({behavior:'smooth',block:'center'});},60);
+}
+
 /* ---------- status / live indicator ---------- */
 function updateStatus(fromCache){
   const live=MATCHES.filter(m=>m.state==="in");
@@ -495,13 +551,13 @@ async function load(manual){
     MATCHES=applyLive(seedToMatches(), live);   // seed = full schedule, ESPN = live overlay
     cacheSet(txt);
     document.getElementById('banner').classList.remove('show');
-    renderToday();renderGroups();renderSchedule();renderR32();updateStatus(false);
+    renderToday();renderGroups();renderSchedule();renderR32();renderFollow();updateStatus(false);
     schedulePoll();
   }catch(err){
     let cached=cacheGet(), used=false;
     if(cached){ try{ MATCHES=applyLive(seedToMatches(), parseEvents(JSON.parse(cached))); used=true; }catch(e){} }
     if(!used){ MATCHES=seedToMatches(); }
-    renderToday();renderGroups();renderSchedule();renderR32();updateStatus(true);
+    renderToday();renderGroups();renderSchedule();renderR32();renderFollow();updateStatus(true);
     showBanner((used?"Showing the last live data saved on this device":"Showing the built-in snapshot from "+SNAPSHOT)+". Live scores need a network connection — if you're viewing this inside an app preview, download the file and open it in Safari or Chrome, then tap Refresh.","soft");
   }finally{
     if(manual)setTimeout(()=>btn.classList.remove('spin'),500);
@@ -557,7 +613,13 @@ document.getElementById('refreshBtn').addEventListener('click',()=>load(true));
   });
 })();
 (function(){var rT=null;window.addEventListener('resize',function(){clearTimeout(rT);rT=setTimeout(drawBracketConnectors,120);});})();
+document.getElementById('followSel').addEventListener('change',function(e){
+  FOLLOW=e.target.value;
+  try{localStorage.setItem(FOLLOW_KEY,FOLLOW);}catch(err){}
+  renderToday();renderSchedule();renderR32();renderFollow();
+});
+setInterval(function(){if(FOLLOW)renderFollow();},30000);  // keep the countdown fresh
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)load(false);});
 
-MATCHES=seedToMatches();renderToday();renderGroups();renderSchedule();renderR32();updateStatus(true);
+MATCHES=seedToMatches();renderToday();renderGroups();renderSchedule();renderR32();renderFollow();updateStatus(true);
 load(false);

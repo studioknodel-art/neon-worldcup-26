@@ -283,3 +283,19 @@
     .tabnav button{padding:9px 14px;font-size:13px}
     .wrap{padding-top:20px}
   }
+/* follow your team */
+.followbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-6px 0 20px}
+.flabel{font-family:'JetBrains Mono';font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+#followSel{background:linear-gradient(180deg,var(--panel1),var(--panel2));color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px 32px 8px 10px;font-family:'Sora',sans-serif;font-size:13px;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2300e8ff' stroke-width='1.6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center}
+#followSel:hover{border-color:rgba(0,232,255,.35)}
+.fstrip{flex:1;min-width:250px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;border:1px solid rgba(255,194,77,.4);border-radius:12px;background:linear-gradient(180deg,rgba(255,194,77,.07),var(--panel2));font-size:13.5px}
+.fstrip .cd{font-family:'JetBrains Mono';font-weight:700;color:var(--amber);white-space:nowrap}
+.fstrip .flv{color:var(--live);font-weight:700}
+.fstrip .fmut{color:var(--mut)}
+.fstrip .fadv{color:var(--adv);font-weight:600}
+.fstrip button{margin-left:auto;cursor:pointer;font-family:'Sora',sans-serif;font-size:12px;font-weight:600;padding:7px 12px;border-radius:9px;border:1px solid rgba(255,194,77,.45);background:transparent;color:var(--amber);transition:background .2s}
+.fstrip button:hover{background:rgba(255,194,77,.12)}
+.tgame.fav,.row.fav,.r32card.fav{border-color:rgba(255,194,77,.55);box-shadow:inset -3px 0 0 var(--amber)}
+.tgame.fav.dl,.row.fav.dl,.r32card.fav.dl{box-shadow:inset 3px 0 0 var(--dallas),inset -3px 0 0 var(--amber)}
+.bnode.fav{border-color:rgba(255,194,77,.6)}
+@media(max-width:560px){.fstrip button{margin-left:0;flex-basis:100%}}
