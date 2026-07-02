@@ -476,6 +476,24 @@ function kickoffText(ts){
   const ms=ts-Date.now();
   return ms<=0?'⏱ kicking off…':'⏱ kicks off in '+fmtCountdown(ms);
 }
+function bracketPos(id){
+  for(let c=0;c<BRACKET.columns.length;c++){const p=BRACKET.columns[c].ids.indexOf(id);if(p>=0)return{c:c,p:p};}
+  return null;
+}
+// What advancing from knockout match m would earn: {label, opp} or null if not a bracketed KO or it's the Final.
+function projectOpponent(m){
+  const pos=bracketPos(m.id); if(!pos)return null;
+  const parentCol=BRACKET.columns[pos.c+1]; if(!parentCol)return null;   // Final: nothing beyond
+  const sibId=BRACKET.columns[pos.c].ids[pos.p%2===0?pos.p+1:pos.p-1];
+  const sib=MATCHES.find(x=>x.id===sibId);
+  if(!sib)return{label:parentCol.label,opp:'TBD'};
+  const oc=r32Outcome(sib);
+  if(oc)return{label:parentCol.label,opp:oc.winner.name};
+  // Name the two sides only if real (ESPN gives placeholders fake abbrs, so check the name).
+  const real=t=>(t&&t.name&&!/^(rd32|rd16|qf|sf|winner|runner|3rd|third|tbd)\b/i.test(t.name))?t.name:null;
+  const na=real(sib.a), nb=real(sib.b);
+  return{label:parentCol.label,opp:(na&&nb)?('winner of '+na+'/'+nb):'TBD'};
+}
 function renderFollow(){
   const sel=document.getElementById('followSel'), strip=document.getElementById('fstrip');
   if(!sel||!strip)return;
@@ -498,10 +516,14 @@ function renderFollow(){
   if(live){
     const opp=live.a.abbr===FOLLOW?live.b:live.a;
     html+='<span class="flv">● LIVE '+(live.sa==null?0:live.sa)+'–'+(live.sb==null?0:live.sb)+' vs '+opp.name+(live.clock?' · '+live.clock:'')+'</span>';
+    const pr=live.stage!=='group'?projectOpponent(live):null;
+    if(pr)html+='<span class="fproj">Win → '+pr.label+' vs '+pr.opp+'</span>';
   }else if(next){
     const opp=next.a.abbr===FOLLOW?next.b:next.a;
     html+='<span>Next: vs '+opp.name+' · '+fmtDay(next.date)+' '+fmtTime(next.date)+' CDT · '+(next.ch||'TBD')+'</span>'
       +'<span class="cd">in '+fmtCountdown(next.date-new Date())+'</span>';
+    const pr=next.stage!=='group'?projectOpponent(next):null;
+    if(pr)html+='<span class="fproj">Win → '+pr.label+' vs '+pr.opp+'</span>';
   }else if(last&&last.stage!=='group'){
     const oc=r32Outcome(last);
     if(oc&&oc.winner.abbr===FOLLOW) html+='<span class="fadv">Through to the next round — opponent TBD</span>';
