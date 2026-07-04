@@ -63,7 +63,7 @@ function parseEvents(json){
     const team=c=>({abbr:(c.team&&c.team.abbreviation)||"",
                     name:(c.team&&(c.team.shortDisplayName||c.team.displayName))||"TBD"});
     out.push({
-      id:ev.id, date, grp:st.grp, stage:st.stage, state,
+      id:ev.id, eid:ev.id, homeAbbr:team(home).abbr, date, grp:st.grp, stage:st.stage, state,
       a:team(home), b:team(away),
       sa:home.score!=null&&home.score!==""?parseInt(home.score):null,
       sb:away.score!=null&&away.score!==""?parseInt(away.score):null,
@@ -94,7 +94,7 @@ function applyLive(base,live){
     if(!m)m=byTime[keyTime(L.date)];
     if(!m)return;
     m.state=L.state;m.sa=L.sa;m.sb=L.sb;m.detail=L.detail;m.clock=L.clock;
-    m.winA=L.winA;m.winB=L.winB;
+    m.winA=L.winA;m.winB=L.winB;m.eid=L.eid;m.homeAbbr=L.homeAbbr;
     if(L.ch)m.ch=L.ch;
     if(L.venueName)m.venueName=L.venueName;
     if(!m.a.abbr&&L.a.abbr)m.a={abbr:L.a.abbr,name:L.a.name};
@@ -259,9 +259,10 @@ function renderSchedule(){
       <div class="time">${timecell}</div>
       <div class="match">${tn(m.a)} <span class="vs" style="color:var(--mut);font-size:12px">vs</span> ${tn(m.b)}${score}${m.dallas?'<span class="dlflag">▸ DALLAS</span>':''}<span class="stage">${m.grp?'Group '+m.grp:(STAGEL[m.stage]||'')}</span></div>
       <div class="venue"><b>${m.venueCity||m.venueName||''}</b>${m.venueName||''}</div>
-      <div class="ch ${chCls}">${m.ch||'TBD'}</div>`;
+      <div class="ch ${chCls}">${m.ch||'TBD'}</div>${m.state==='pre'&&m.eid?`<div class="pmbar" data-mid="${m.id}" hidden></div>`:''}`;
     dayEl.appendChild(r);
   });
+  scheduleHydrate();
 }
 
 /* ---------- today's games ---------- */
@@ -292,8 +293,11 @@ function renderToday(){
       +'<div class="ttime">'+when+'</div>'
       +'<div class="tmatch">'+tn(m.a,false)+' <span class="vs">vs</span> '+tn(m.b,false)+hint+'</div>'
       +'<div class="ch '+chCls+'">'+(m.ch||'TBD')+'</div>'
-      +scoreReveal+'</div>';
+      +scoreReveal
+      +((!hasScore&&m.eid)?'<div class="pmbar" data-mid="'+m.id+'" hidden></div>':'')
+      +'</div>';
   }).join('');
+  scheduleHydrate();
 }
 
 /* ---------- round of 32 ---------- */
@@ -545,6 +549,58 @@ function followShowPath(){
   document.querySelector('#r32switch button[data-mode="bracket"]').click();
   const el=document.getElementById('bktInner');
   if(el)setTimeout(function(){el.scrollIntoView({behavior:'smooth',block:'center'});},60);
+}
+
+/* ---------- prediction bar (implied win chance from ESPN moneylines) ---------- */
+// Neutral win-chance % only — no odds shown, no sportsbook named, no betting links.
+const ODDS_CACHE={};
+function amToProb(x){return x>0?100/(x+100):(-x)/((-x)+100);}   // American moneyline → implied prob
+function oddsToProbs(o,m){
+  const ml=v=>(v&&v.moneyLine!=null)?v.moneyLine:null;
+  const h=ml(o.homeTeamOdds), aw=ml(o.awayTeamOdds), d=ml(o.drawOdds);
+  if(h==null||aw==null||d==null)return null;
+  let ph=amToProb(h),pa=amToProb(aw),pd=amToProb(d),s=ph+pa+pd;   // normalize out the vig
+  if(!(s>0))return null;
+  const aHome=!!(m.a.abbr&&m.a.abbr===m.homeAbbr);
+  return {a:(aHome?ph:pa)/s,b:(aHome?pa:ph)/s,draw:pd/s};
+}
+async function fetchOdds(m){
+  if(!m.eid)return null;
+  const c=ODDS_CACHE[m.eid];
+  if(c&&Date.now()-c.ts<10*60000)return c.p;
+  try{
+    const j=await jfetch('https://sports.core.api.espn.com/v2/sports/soccer/leagues/fifa.world/events/'+m.eid+'/competitions/'+m.eid+'/odds?limit=3');
+    const p=(j.items&&j.items[0])?oddsToProbs(j.items[0],m):null;
+    ODDS_CACHE[m.eid]={ts:Date.now(),p:p};
+    return p;
+  }catch(e){ODDS_CACHE[m.eid]={ts:Date.now(),p:null};return null;}
+}
+function pmBarHTML(p,m){
+  const a=Math.round(p.a*100), d=Math.round(p.draw*100), b=100-a-d;   // total stays exactly 100
+  const an=m.a.abbr||m.a.name, bn=m.b.abbr||m.b.name;
+  return '<div class="pmrow"><span class="pma">'+an+' '+a+'%</span>'
+    +'<span class="pmd">Draw '+d+'%</span>'
+    +'<span class="pmb">'+b+'% '+bn+'</span></div>'
+    +'<div class="pmtrack" role="img" aria-label="Implied win chance: '+m.a.name+' '+a+'%, draw '+d+'%, '+m.b.name+' '+b+'%">'
+    +'<span class="pseg sa" style="width:'+a+'%"></span>'
+    +'<span class="pseg sd" style="width:'+d+'%"></span>'
+    +'<span class="pseg sb" style="width:'+b+'%"></span></div>'
+    +'<div class="pmcap">Implied win chance · regulation</div>';
+}
+let hydrating=false, hydrateTimer=null;
+function scheduleHydrate(){clearTimeout(hydrateTimer);hydrateTimer=setTimeout(hydrateOddsBars,60);}
+async function hydrateOddsBars(){
+  if(hydrating)return; hydrating=true;
+  try{
+    const bars=Array.from(document.querySelectorAll('.pmbar[data-mid]:not([data-done])'));
+    for(const bar of bars){
+      bar.setAttribute('data-done','1');
+      const m=MATCHES.find(x=>x.id===bar.dataset.mid);
+      if(!m)continue;
+      const p=await fetchOdds(m);
+      if(p&&bar.isConnected){bar.innerHTML=pmBarHTML(p,m);bar.hidden=false;}
+    }
+  }finally{hydrating=false;}
 }
 
 /* ---------- share + calendar ---------- */
