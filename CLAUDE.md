@@ -2,7 +2,9 @@
 
 Unofficial fan site: live scores, group standings, schedule, interactive knockout bracket, follow-your-team. Neon/synthwave design. All times Dallas Central (`TZ='America/Chicago'`).
 
-**Production:** https://neon-worldcup-26.netlify.app (Netlify site id `f191c838-3bcf-4803-ba27-c4f0f6a2f88c`, name `neon-worldcup-26`)
+**Production:** https://studioknodel-art.github.io/neon-worldcup-26/ — GitHub Pages, served from `main` branch root. Repo: `studioknodel-art/neon-worldcup-26` (public; site carries `noindex` so it's an unlisted link). Every push to `main` auto-rebuilds Pages (~1 min) — no deploy command needed.
+
+_Legacy:_ also still live on Netlify (`neon-worldcup-26`, id `f191c838-3bcf-4803-ba27-c4f0f6a2f88c`) — safe to delete; GitHub Pages is now the canonical host.
 
 ## Architecture
 
@@ -33,14 +35,17 @@ Static site, no build step, no framework, ES5-ish vanilla JS.
 - Accessibility is established: keyboard + ARIA on tabs/cards/bracket nodes, `prefers-reduced-motion`, focus-visible — keep new UI to that standard
 - git is live in this folder; commit each logical change separately
 
-## Verify & deploy (do all three before claiming done)
+## Verify & deploy (do all of it before claiming done)
 
 ```bash
 node --check app.js
-node update-seed.mjs        # optional: refresh snapshot before deploying
-netlify deploy --prod --dir . --site f191c838-3bcf-4803-ba27-c4f0f6a2f88c
+node update-seed.mjs        # optional: refresh the embedded snapshot from ESPN first
+git add -A && git commit -m "..."
+git push                    # → GitHub Pages auto-rebuilds main in ~1 min
 ```
-Netlify CLI lives in `~/.npm-global/bin` (add to PATH). For visual verification, serve this folder (`python3 -m http.server`) and check: console clean, follow flow, bracket connectors, mobile width (`max-width:560px` breakpoints).
+Deploy is just `git push` now (Pages watches `main`). After pushing, confirm the live asset updated:
+`curl -s "https://studioknodel-art.github.io/neon-worldcup-26/app.js?cb=$(date +%s)" | grep -c <new-symbol>`.
+For visual verification, serve this folder (`python3 -m http.server`) and check: console clean, follow flow, bracket connectors, prediction bars, mobile width (`max-width:560px` breakpoints).
 
 ## Backlog — all shipped ✓
 
