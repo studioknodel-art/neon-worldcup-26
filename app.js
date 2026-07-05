@@ -726,23 +726,45 @@ function updateStatus(fromCache){
   else { u.textContent="Updated "+now+(live.length?" · live, auto-refreshing every 30s":""); }
 }
 
+/* ---------- data providers ----------
+   Ordered failover registry. Each provider exposes async fetchLive() ->
+   {raw, live[]} where live[] is in the exact shape parseEvents() produces.
+   load() tries providers in order; the first that returns a non-empty live[]
+   wins. If all providers fail, load() falls back to the device cache, then SEED.
+   Adding a source later = one entry here + a normalizer that honours the SEED
+   sharp edges (0-not-null scores, placeholder teams, winA/winB penalty flags). */
+const PROVIDERS=[
+  {
+    id:"espn",
+    async fetchLive(){
+      const res=await fetch(API+"&_="+Date.now(),{cache:"no-store"});
+      if(!res.ok) throw new Error("HTTP "+res.status);
+      const raw=await res.text();
+      const live=parseEvents(JSON.parse(raw));
+      if(live.length===0) throw new Error("no events");
+      return {raw:raw, live:live};
+    }
+  }
+];
+
 /* ---------- load + poll ---------- */
 async function load(manual){
   const btn=document.getElementById('refreshBtn');
   if(manual)btn.classList.add('spin');
   try{
-    const res=await fetch(API+"&_="+Date.now(),{cache:"no-store"});
-    if(!res.ok) throw new Error("HTTP "+res.status);
-    const txt=await res.text();
+    let result=null,firstErr=null;
+    for(const p of PROVIDERS){
+      try{ result=await p.fetchLive(); break; }
+      catch(e){ if(!firstErr)firstErr=e; }
+    }
+    if(!result) throw firstErr||new Error("no data providers available");
+    const txt=result.raw;
     if(!manual&&lastLoadOk&&txt===lastPayload){  // nothing changed — keep UI state (open cards, selections)
       document.getElementById('banner').classList.remove('show');
       updateStatus(false);schedulePoll();return;
     }
-    const json=JSON.parse(txt);
-    const live=parseEvents(json);
-    if(live.length===0) throw new Error("no events");
     lastPayload=txt;lastLoadOk=true;
-    MATCHES=applyLive(seedToMatches(), live);   // seed = full schedule, ESPN = live overlay
+    MATCHES=applyLive(seedToMatches(), result.live);   // seed = full schedule, live feed = overlay
     cacheSet(txt);
     document.getElementById('banner').classList.remove('show');
     renderToday();renderGroups();renderSchedule();renderR32();renderFollow();updateStatus(false);
